@@ -1,7 +1,8 @@
 #pragma once
 #include "config.h"
 #include "BMSModule.h"
-#include <FlexCAN.h>
+//#include <FlexCAN.h>
+#include "BMSCan.h"
 
 class BMSModuleManager
 {
@@ -9,8 +10,10 @@ public:
     BMSModuleManager();
     int seriescells();
     void clearmodules();
-    void decodecan(CAN_message_t &msg,int debug);
-    void decodetemp(CAN_message_t &msg, int debug, int CSC);
+//    void decodecan(CAN_message_t &msg,int debug);
+//    void decodetemp(CAN_message_t &msg, int debug, int CSC);
+    void decodecan(BMS_CAN_MESSAGE &msg, int debug);
+    void decodetemp(BMS_CAN_MESSAGE &msg, int debug, int CSC);
     void balanceCells();
     void setupBoards();
         bool checkcomms();

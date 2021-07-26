@@ -44,7 +44,8 @@ void BMSModule::clearmodule()
   moduleAddress = 0;
 }
 
-void BMSModule::decodetemp(CAN_message_t &msg, int CSC)
+//void BMSModule::decodetemp(CAN_message_t &msg, int CSC)
+void BMSModule::decodetemp(BMS_CAN_MESSAGE &msg, int CSC)
 {
   for (int g = 0; g < 4; g++)
   {
@@ -56,7 +57,8 @@ void BMSModule::decodetemp(CAN_message_t &msg, int CSC)
   }
 }
 
-void BMSModule::decodecan(int Id, CAN_message_t &msg, bool Ign)
+//void BMSModule::decodecan(int Id, CAN_message_t &msg, bool Ign)
+void BMSModule::decodecan(int Id, BMS_CAN_MESSAGE &msg, bool Ign)
 {
   switch (Id)
   {

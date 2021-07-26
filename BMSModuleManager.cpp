@@ -91,7 +91,8 @@ int BMSModuleManager::getNumModules()
   return numFoundModules;
 }
 
-void BMSModuleManager::decodetemp(CAN_message_t &msg, int debug, int CSC)
+//void BMSModuleManager::decodetemp(CAN_message_t &msg, int debug, int CSC)
+void BMSModuleManager::decodetemp(BMS_CAN_MESSAGE &msg, int debug, int CSC)
 {
   int CMU = (msg.id & 0x00F) + 1;
   modules[CMU].decodetemp(msg, CSC);
@@ -103,7 +104,8 @@ void BMSModuleManager::decodetemp(CAN_message_t &msg, int debug, int CSC)
   }
 }
 
-void BMSModuleManager::decodecan(CAN_message_t &msg, int debug)
+//void BMSModuleManager::decodecan(CAN_message_t &msg, int debug)
+void BMSModuleManager::decodecan(BMS_CAN_MESSAGE &msg, int debug)
 {
   int Id = (msg.id & 0x0F0);
   int CMU = (msg.id & 0x00F) + 1;

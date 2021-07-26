@@ -81,6 +81,7 @@ typedef struct {
   float convlow;
   uint16_t offset1;
   uint16_t offset2;
+  int32_t changecur;
   uint16_t balanceDuty;
   int ESSmode;
   int gaugelow;
@@ -95,4 +96,9 @@ typedef struct {
    uint8_t tripcont;
    uint8_t CSCvariant;
    int16_t TempOff;
+  int16_t chargecurrentcold;
+  int curcan;
+  int chargerCanIndex;
+  int veCanIndex;
+  int secondBatteryCanIndex;
 } EEPROMSettings;
