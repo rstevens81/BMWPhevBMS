@@ -80,8 +80,6 @@ float filterFrequency = 5.0 ;
 FilterOnePole lowpassFilter( LOWPASS, filterFrequency );
 
 //Simple BMS V2 wiring//
-const int ACUR2 = A0; // current 1
-const int ACUR1 = A1; // current 2
 const int IN1 = 17; // input 1 - high active
 const int IN2 = 16; // input 2- high active
 const int IN3 = 18; // input 1 - high active
@@ -349,25 +347,32 @@ void setup()
   analogWriteFrequency(OUT6, pwmfreq);
   analogWriteFrequency(OUT7, pwmfreq);
   analogWriteFrequency(OUT8, pwmfreq);
+
+  Serial.print ("Using pin #") ;
+  Serial.print (MCP2515_SI) ;
+  Serial.print (" for MOSI: ") ;
+  Serial.println (SPI.pinIsMOSI (MCP2515_SI) ? "yes" : "NO!!!") ;
+  Serial.print ("Using pin #") ;
+  Serial.print (MCP2515_SO) ;
+  Serial.print (" for MISO: ") ;
+  Serial.println (SPI.pinIsMISO (MCP2515_SO) ? "yes" : "NO!!!") ;
+  Serial.print ("Using pin #") ;
+  Serial.print (MCP2515_SCK) ;
+  Serial.print (" for SCK: ") ;
+  Serial.println (SPI.pinIsSCK (MCP2515_SCK) ? "yes" : "NO!!!") ;
   
   SPI.setMOSI (MCP2515_SI) ;
   SPI.setMISO (MCP2515_SO) ;
   SPI.setSCK (MCP2515_SCK) ;
   SPI.begin () ;
 
+  #ifdef __MK66FX1M0__
   SPI1.setMOSI (MCP2515_SI_2) ;
   SPI1.setMISO (MCP2515_SO_2) ;
   SPI1.setSCK (MCP2515_SCK_2) ;
   SPI1.begin () ;
+  #endif
 
-  //if using enable pins on a transceiver they need to be set on
-
-
-  adc->adc0->setAveraging(16); // set number of averages
-  adc->adc0->setResolution(16); // set bits of resolution
-  adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::MED_SPEED);
-  adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
-  adc->adc0->startContinuous(ACUR1);
 
 
   SERIALCONSOLE.begin(115200);
@@ -410,7 +415,7 @@ void setup()
   /////////////////
 
 
-  SERIALBMS.begin(612500); //Tesla serial bus
+//  SERIALBMS.begin(612500); //Tesla serial bus
   //VE.begin(19200); //Victron VE direct bus
 #if defined (__arm__) && defined (__SAM3X8E__)
   serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
@@ -1258,18 +1263,18 @@ void getcurrent()
       if (currentact < 19000 && currentact > -19000)
       {
         sensor = 1;
-        adc->startContinuous(ACUR1, ADC_0);
+//        adc->startContinuous(ACUR1, ADC_0);
       }
       else
       {
         sensor = 2;
-        adc->startContinuous(ACUR2, ADC_0);
+//        adc->startContinuous(ACUR2, ADC_0);
       }
     }
     else
     {
       sensor = 1;
-      adc->startContinuous(ACUR1, ADC_0);
+//      adc->startContinuous(ACUR1, ADC_0);
     }
     if (sensor == 1)
     {
@@ -1629,7 +1634,7 @@ void contcon()
 
 void calcur()
 {
-  adc->adc0->startContinuous(ACUR1);
+//  adc->adc0->startContinuous(ACUR1);
   sensor = 1;
   x = 0;
   SERIALCONSOLE.print(" Calibrating Current Offset ::::: ");
@@ -1645,7 +1650,7 @@ void calcur()
   SERIALCONSOLE.print(" current offset 1 calibrated ");
   SERIALCONSOLE.println("  ");
   x = 0;
-  adc->startContinuous(ACUR2, ADC_0);
+//  adc->startContinuous(ACUR2, ADC_0);
   sensor = 2;
   SERIALCONSOLE.print(" Calibrating Current Offset ::::: ");
   while (x < 20)
