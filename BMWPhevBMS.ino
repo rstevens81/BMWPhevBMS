@@ -227,6 +227,7 @@ int menuload = 0;
 int balancecells;
 int debugdigits = 2; //amount of digits behind decimal for voltage reading
 int balancedebug = 0;
+int chargeOverride = 0;
 
 //BMW Can Variables///
 
@@ -245,9 +246,11 @@ CRC8 crc8;
 uint8_t checksum;
 const uint8_t finalxor [12] = {0xCF, 0xF5, 0xBB, 0x81, 0x27, 0x1D, 0x53, 0x69, 0x02, 0x38, 0x76, 0x4C};
 
-
-
 ADC *adc = new ADC(); // adc object
+
+bool chargeEnabled() {
+  return digitalRead(IN3) == HIGH || chargeOverride == 1;
+}
 
 void loadSettings()
 {
@@ -739,7 +742,7 @@ void loop()
           {
             balancecells = 0;
           }
-          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))) //detect AC present for charging and check not balancing
+          if (chargeEnabled() && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))) //detect AC present for charging and check not balancing
           {
             if (settings.ChargerDirect == 1)
             {
@@ -771,7 +774,7 @@ void loop()
           {
             bmsstatus = Ready;
           }
-          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))) //detect AC present for charging and check not balancing
+          if (chargeEnabled() && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))) //detect AC present for charging and check not balancing
           {
             bmsstatus = Charge;
           }
@@ -803,7 +806,7 @@ void loop()
             digitalWrite(OUT3, LOW);//turn off charger
             bmsstatus = Ready;
           }
-          if (digitalRead(IN3) == LOW)//detect AC not present for charging
+          if (!chargeEnabled())//detect AC not present for charging
           {
             bmsstatus = Ready;
           }
@@ -1176,7 +1179,7 @@ void printbmsstat()
     }
   }
   SERIALCONSOLE.print("  ");
-  if (digitalRead(IN3) == HIGH)
+  if (chargeEnabled())
   {
     SERIALCONSOLE.print("| AC Present |");
   }
@@ -1498,7 +1501,7 @@ void SOCcharged(int y)
 
 void Prechargecon()
 {
-  if (digitalRead(IN1) == HIGH || digitalRead(IN3) == HIGH) //detect Key ON or AC present
+  if (digitalRead(IN1) == HIGH || chargeEnabled()) //detect Key ON or AC present
   {
     digitalWrite(OUT4, HIGH);//Negative Contactor Close
     contctrl = 2;
@@ -1516,7 +1519,7 @@ void Prechargecon()
       }
       else
       {
-        if (digitalRead(IN3) == HIGH)
+        if (chargeEnabled())
         {
           bmsstatus = Charge;
         }
@@ -2262,7 +2265,7 @@ void menu()
 
       case '5': //1 Over Voltage Setpoint
         settings.chargertype = settings.chargertype + 1;
-        if (settings.chargertype > 6)
+        if (settings.chargertype > 8)
         {
           settings.chargertype = 0;
         }
@@ -2312,6 +2315,18 @@ void menu()
             settings.veCanIndex = 0;
           }
           bmscan.begin(500000, settings.veCanIndex);
+          menuload = 1;
+          incomingByte = 'e';
+        }
+        break;
+       case 'o':
+        if (Serial.available() > 0)
+        {
+          if (chargeOverride == 0) {
+            chargeOverride = 1;
+          } else {
+            chargeOverride = 0;
+          }
           menuload = 1;
           incomingByte = 'e';
         }
@@ -2787,6 +2802,13 @@ void menu()
           case 3:
             SERIALCONSOLE.print("SPI1");
             break;		 
+        }
+        SERIALCONSOLE.println();
+        SERIALCONSOLE.print("o - Override AC present: ");
+        if (chargeOverride == true) {
+          SERIALCONSOLE.print("ON");
+        } else {
+          SERIALCONSOLE.print("OFF");
         }
         SERIALCONSOLE.println();
         SERIALCONSOLE.println("q - Go back to menu");
