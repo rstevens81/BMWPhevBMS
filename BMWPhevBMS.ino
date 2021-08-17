@@ -117,7 +117,8 @@ byte bmsstatus = 0;
 #define IsaScale 3
 #define VictronLynx 4
 #define LemCAB500 2
-#define CurCanMax 4 // max value
+#define BMWSBox 5
+#define CurCanMax 5 // max value
 //
 //Charger Types
 #define NoCharger 0
@@ -129,6 +130,11 @@ byte bmsstatus = 0;
 #define Coda 6
 #define Outlander 8
 //
+int outlander_charger_reported_voltage = 0;
+int outlander_charger_reported_current = 0;
+int outlander_charger_reported_temp1 = 0;
+int outlander_charger_reported_temp2 = 0;
+byte outlander_charger_reported_status = 0;
 
 //CSC Variants
 #define BmwI3 0
@@ -1175,6 +1181,9 @@ void printbmsstat()
 
       case (Error):
         SERIALCONSOLE.print(" Error ");
+        if (ErrorReason == 4) {
+            SERIALCONSOLE.print(" Module Missing "); 
+        }
         break;
     }
   }
@@ -1254,6 +1263,21 @@ void printbmsstat()
   SERIALCONSOLE.print(" A DisCharge Current Limit : ");
   SERIALCONSOLE.print(discurrent * 0.1, 0);
   SERIALCONSOLE.print(" A");
+
+  if (bmsstatus == Charge && settings.chargertype == Outlander) {
+    SERIALCONSOLE.println();
+    SERIALCONSOLE.print("Outlander Charger - Reported Voltage: ");
+    SERIALCONSOLE.print(outlander_charger_reported_voltage);
+    SERIALCONSOLE.print("V Reported Current: ");
+    SERIALCONSOLE.print(outlander_charger_reported_current / 10);
+    SERIALCONSOLE.print("A Reported Temp1: ");
+    SERIALCONSOLE.print(outlander_charger_reported_temp1);
+    SERIALCONSOLE.print("C Reported Temp2: ");
+    SERIALCONSOLE.print(outlander_charger_reported_temp2);
+    SERIALCONSOLE.print("C");
+
+    SERIALCONSOLE.println();
+  }
 }
 
 
@@ -1701,8 +1725,8 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[3] = highByte(SOH);
   msg.buf[4] = lowByte(SOC * 10);
   msg.buf[5] = highByte(SOC * 10);
-  msg.buf[6] = 0;
-  msg.buf[7] = 0;
+  msg.buf[6] = lowByte(bmsstatus);
+  msg.buf[7] = highByte(bmsstatus);
   bmscan.write(msg, settings.veCanIndex);
 
   msg.id  = 0x356;
@@ -1713,8 +1737,8 @@ void VEcan() //communication with Victron system over CAN
   msg.buf[3] = highByte(long(currentact / 100));
   msg.buf[4] = lowByte(int16_t(bms.getAvgTemperature() * 10));
   msg.buf[5] = highByte(int16_t(bms.getAvgTemperature() * 10));
-  msg.buf[6] = 0;
-  msg.buf[7] = 0;
+  msg.buf[6] = lowByte(uint16_t(bms.getAvgCellVolt() * 1000));
+  msg.buf[7] = highByte(uint16_t(bms.getAvgCellVolt() * 1000));
   bmscan.write(msg, settings.veCanIndex);
 
   delay(2);
@@ -2102,7 +2126,11 @@ void menu()
         menuload = 1;
         incomingByte = 'c';
         break;
-
+      case '7': //s for switch sensor
+        settings.curcan++;
+        menuload = 1;
+        incomingByte = 'c';
+        break;
 
       default:
         // if nothing else matches, do the default
@@ -2994,7 +3022,7 @@ void menu()
         }
         if ( settings.cursens == Canbus)
         {
-          SERIALCONSOLE.print("7 -Can Current Sensor :");
+          SERIALCONSOLE.print("7 - Can Current Sensor :");
           if (settings.curcan == LemCAB300)
           {
             SERIALCONSOLE.println(" LEM CAB300/500 series ");
@@ -3010,6 +3038,10 @@ void menu()
           else if (settings.curcan == VictronLynx)
           {
             SERIALCONSOLE.println(" Victron Lynx VE.CAN Shunt");
+          }
+         else if (settings.curcan == BMWSBox)
+          {
+            SERIALCONSOLE.println(" BMW SBox Shunt");
           }
         }											  
         SERIALCONSOLE.println("q - Go back to menu");
@@ -3116,7 +3148,8 @@ void menu()
         {
           SERIALCONSOLE.print("Mini-E");
         }
-		SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.println("  ");
+		    SERIALCONSOLE.println("l - Secondary Battery Pack Can Interface: ");
         switch (settings.secondBatteryCanIndex)
         {
           case 0:
@@ -3231,6 +3264,17 @@ void canread(int canInterfaceOffset, int idOffset)
         handleVictronLynx();
       }
     }
+    if (settings.curcan == BMWSBox)
+    {
+      switch (inMsg.id)
+      {
+        case 0x200: //
+          CANmilliamps = (inMsg.buf[3] && 0x01) + (inMsg.buf[2] << 4) + (inMsg.buf[1] << 12) + (inMsg.buf[0] << 20);
+          SERIALCONSOLE.print("SBOX: ");
+          SERIALCONSOLE.println(inMsg.buf[0] << 20);
+          break;
+      }
+    }
 					 
   }
   ////
@@ -3257,12 +3301,25 @@ void canread(int canInterfaceOffset, int idOffset)
       bms.decodetemp(inMsg, 0, settings.CSCvariant);
     }
   }
+  if (settings.chargerCanIndex == canInterfaceOffset && settings.chargertype == Outlander) {
+    if (inMsg.id == 0x389) {
+      outlander_charger_reported_voltage = inMsg.buf[0] * 2;
+      outlander_charger_reported_current = inMsg.buf[2];
+      outlander_charger_reported_temp1 = inMsg.buf[3] - 40;
+      outlander_charger_reported_temp2 = inMsg.buf[4] - 40;
+
+    } else if (inMsg.id == 0x38A) {
+       outlander_charger_reported_status = inMsg.buf[4];
+    }
+  }
+
   if (debug == 1)
   {
     if (candebug == 1)
     {
-      Serial.print(millis());
-      if ((inMsg.id & 0x80000000) == 0x80000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
+      if (inMsg.id > 0) {
+              Serial.print(millis());
+        if ((inMsg.id & 0x80000000) == 0x80000000)    // Determine if ID is standard (11 bits) or extended (29 bits)
         sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (inMsg.id & 0x1FFFFFFF), inMsg.len);
       else
         sprintf(msgString, ",0x%.3lX,false,%1d", inMsg.id, inMsg.len);
@@ -3280,6 +3337,8 @@ void canread(int canInterfaceOffset, int idOffset)
       }
 
       Serial.println();
+      }
+      
     }
   }
 }
@@ -3694,27 +3753,27 @@ void dashupdate()
     switch (bmsstatus)
     {
       case (Boot):
-        Serial2.print(" Boot ");
+        Serial2.print("Boot");
         break;
 
       case (Ready):
-        Serial2.print(" Ready ");
+        Serial2.print("Ready");
         break;
 
       case (Precharge):
-        Serial2.print(" Precharge ");
+        Serial2.print("Precharge");
         break;
 
       case (Drive):
-        Serial2.print(" Drive ");
+        Serial2.print("Drive");
         break;
 
       case (Charge):
-        Serial2.print(" Charge ");
+        Serial2.print("Charge");
         break;
 
       case (Error):
-        Serial2.print(" Error ");
+        Serial2.print("Error");
         break;
     }
   }
@@ -3772,11 +3831,44 @@ void dashupdate()
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
+  Serial2.print("ac.val=");
+  Serial2.print(chargeEnabled());
+  Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+  Serial2.write(0xff);
+  Serial2.write(0xff);
   Serial2.print("celldelta.val=");
   Serial2.print((bms.getHighCellVolt() - bms.getLowCellVolt()) * 1000, 0);
   Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
   Serial2.write(0xff);
   Serial2.write(0xff);
+  if(bmsstatus == Charge) {
+    Serial2.print("requestedchargecurrent.val=");
+    Serial2.print(chargecurrent);
+    Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+    Serial2.write(0xff);
+    Serial2.write(0xff);
+
+    if(settings.chargertype == Outlander) {
+      Serial2.print("chargercurrent.val=");
+      Serial2.print(outlander_charger_reported_current);
+      Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+      Serial2.write(0xff);
+      Serial2.write(0xff);
+
+      Serial2.print("chargervolts.val=");
+      Serial2.print(outlander_charger_reported_voltage);
+      Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+      Serial2.write(0xff);
+      Serial2.write(0xff);
+
+      Serial2.print("chargertemp.val=");
+      Serial2.print(outlander_charger_reported_temp2);
+      Serial2.write(0xff);  // We always have to send this three lines after each command sent to the nextion display.
+      Serial2.write(0xff);
+      Serial2.write(0xff);   
+      
+    }
+  }
   Serial2.write(0xff);
 }
 
